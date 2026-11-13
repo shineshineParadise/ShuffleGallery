@@ -41,28 +41,19 @@
       max-height: 100%;
       object-fit: contain;
     }
-    .audio-box {
+    .music-player {
       padding: 15px 25px 0;
       display: none;
     }
-    .audio-box audio {
-      width: 100%;
-      outline: none;
-    }
-    .video-box {
-      position: relative;
-      width: 100%;
-      padding-top: 56.25%;
-      display: none;
-      background-color: #000;
-    }
-    .video-box iframe {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+    .play-btn {
+      background-color: #8c6d46;
+      color: #fff;
       border: none;
+      padding: 10px 24px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 25px;
+      cursor: pointer;
     }
     .content {
       padding: 20px 25px 10px;
@@ -88,7 +79,7 @@
       color: #444;
       margin-bottom: 20px;
     }
-    button {
+    .next-btn {
       background-color: #2c3e50;
       color: #fff;
       border: none;
@@ -109,23 +100,20 @@
 <body>
 
 <div class="card">
-  <div class="image-box" id="image-box">
+  <div class="image-box">
     <img id="art-image" referrerpolicy="no-referrer" src="" alt="芸術作品の画像">
   </div>
-  
-  <div class="video-box" id="video-box">
-    <iframe id="art-video" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-  </div>
 
-  <div class="audio-box" id="audio-box">
-    <audio id="art-audio" controls preload="metadata"></audio>
+  <!-- 内蔵音源プレイヤー -->
+  <div class="music-player" id="music-player">
+    <button class="play-btn" id="play-btn" onclick="toggleMelody()">▶ メロディを再生する</button>
   </div>
 
   <div class="content">
     <span id="art-category" class="category">読み込み中...</span>
     <h1 id="art-title">タイトル</h1>
     <p id="art-desc">解説文を読み込んでいます...</p>
-    <button onclick="showRandomArt()">次の芸術に出会う</button>
+    <button class="next-btn" onclick="showRandomArt()">次の芸術に出会う</button>
     <a id="art-link" class="wiki-link" href="#" target="_blank">Wikipediaで詳しく読む</a>
   </div>
 </div>
@@ -139,25 +127,92 @@
       title: "交響曲第9番 (ベートーヴェン)", 
       en: "Symphony_No._9_(Beethoven)", 
       category: "音楽・ドイツ",
-      audio: "https://wikimedia.org"
-    },
-    { 
-      title: "四季 (ヴィヴァルディ)", 
-      en: "The_Four_Seasons_(Vivaldi)", 
-      category: "音楽・イタリア",
-      audio: "https://wikimedia.org"
+      melody: [
+        [329.63, 0.4], [329.63, 0.4], [349.23, 0.4], [392.00, 0.4],
+        [392.00, 0.4], [349.23, 0.4], [329.63, 0.4], [293.66, 0.4],
+        [261.63, 0.4], [261.63, 0.4], [293.66, 0.4], [329.63, 0.4],
+        [329.63, 0.6], [293.66, 0.2], [293.66, 0.8]
+      ]
     },
     { 
       title: "ガムラン", 
       en: "Gamelan", 
       category: "音楽・インドネシア",
-      youtube: "c1AiCTJ9t8g"
+      melody: [
+        [261.63, 0.3], [293.66, 0.3], [329.63, 0.3], [392.00, 0.3],
+        [440.00, 0.3], [523.25, 0.4], [440.00, 0.3], [392.00, 0.3],
+        [329.63, 0.3], [293.66, 0.3], [261.63, 0.6]
+      ]
+    },
+    { 
+      title: "さくらさくら", 
+      en: "Sakura_Sakura", 
+      category: "伝統音楽・日本",
+      melody: [
+        [440.00, 0.4], [440.00, 0.4], [493.88, 0.8],
+        [440.00, 0.4], [440.00, 0.4], [493.88, 0.8],
+        [440.00, 0.4], [493.88, 0.4], [523.25, 0.4], [493.88, 0.4],
+        [440.00, 0.4], [493.88, 0.2], [440.00, 0.2], [349.23, 0.8]
+      ]
     },
     { title: "着物", en: "Kimono", category: "服飾・日本" },
     { title: "真珠の耳飾りの少女", en: "Girl_with_a_Pearl_Earring", category: "絵画・オランダ" }
   ];
 
   let lastIndex = -1;
+  let audioCtx = null;
+  let isPlaying = false;
+  let playTimers = [];
+  let currentMelody = null;
+
+  function stopMelody() {
+    isPlaying = false;
+    playTimers.forEach(timer => clearTimeout(timer));
+    playTimers = [];
+    document.getElementById("play-btn").textContent = "▶ メロディを再生する";
+  }
+
+  function toggleMelody() {
+    if (isPlaying) {
+      stopMelody();
+      return;
+    }
+    if (!currentMelody) return;
+
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+
+    isPlaying = true;
+    document.getElementById("play-btn").textContent = "■ 停止する";
+
+    let currentTime = 0;
+    currentMelody.forEach(([freq, duration]) => {
+      const timer = setTimeout(() => {
+        if (!isPlaying) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      }, currentTime * 1000);
+      playTimers.push(timer);
+      currentTime += duration;
+    });
+
+    const endTimer = setTimeout(() => {
+      stopMelody();
+    }, currentTime * 1000);
+    playTimers.push(endTimer);
+  }
 
   async function fetchWikiData(lang, title) {
     const url = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
@@ -167,6 +222,8 @@
   }
 
   async function showRandomArt() {
+    stopMelody();
+
     let randomIndex;
     do {
       randomIndex = Math.floor(Math.random() * artList.length);
@@ -175,34 +232,19 @@
 
     const selected = artList[randomIndex];
     const imgEl = document.getElementById("art-image");
-    const imageBox = document.getElementById("image-box");
-    const audioBox = document.getElementById("audio-box");
-    const audioEl = document.getElementById("art-audio");
-    const videoBox = document.getElementById("video-box");
-    const videoEl = document.getElementById("art-video");
-
-    audioEl.pause();
-    audioEl.removeAttribute("src");
-    audioEl.load();
-    audioBox.style.display = "none";
-    videoEl.src = "";
-    videoBox.style.display = "none";
-    imageBox.style.display = "flex";
+    const musicPlayer = document.getElementById("music-player");
 
     document.getElementById("art-category").textContent = selected.category;
     document.getElementById("art-title").textContent = selected.title;
     document.getElementById("art-desc").textContent = "Wikipediaから解説と画像を取得中...";
     imgEl.style.display = "none";
 
-    if (selected.audio) {
-      audioEl.src = selected.audio;
-      audioBox.style.display = "block";
-    }
-
-    if (selected.youtube) {
-      videoEl.src = `https://youtube.com{selected.youtube}`;
-      videoBox.style.display = "block";
-      imageBox.style.display = "none";
+    if (selected.melody) {
+      currentMelody = selected.melody;
+      musicPlayer.style.display = "block";
+    } else {
+      currentMelody = null;
+      musicPlayer.style.display = "none";
     }
 
     try {
@@ -212,19 +254,17 @@
         document.getElementById("art-link").href = jaData.content_urls?.desktop?.page || "#";
       }
 
-      if (!selected.youtube) {
-        let imageUrl = jaData?.thumbnail?.source || jaData?.originalimage?.source;
-        if (!imageUrl && selected.en) {
-          const enData = await fetchWikiData("en", selected.en);
-          imageUrl = enData?.thumbnail?.source || enData?.originalimage?.source;
-        }
-        if (imageUrl) {
-          imgEl.src = imageUrl;
-          imgEl.style.display = "block";
-        } else {
-          imgEl.src = "https://placehold.jp";
-          imgEl.style.display = "block";
-        }
+      let imageUrl = jaData?.thumbnail?.source || jaData?.originalimage?.source;
+      if (!imageUrl && selected.en) {
+        const enData = await fetchWikiData("en", selected.en);
+        imageUrl = enData?.thumbnail?.source || enData?.originalimage?.source;
+      }
+      if (imageUrl) {
+        imgEl.src = imageUrl;
+        imgEl.style.display = "block";
+      } else {
+        imgEl.src = "https://placehold.jp";
+        imgEl.style.display = "block";
       }
     } catch (error) {
       document.getElementById("art-desc").textContent = "データの取得に失敗しました。";
@@ -236,3 +276,4 @@
 
 </body>
 </html>
+
