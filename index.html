@@ -106,10 +106,10 @@
     <img id="art-image" referrerpolicy="no-referrer" src="" alt="芸術作品の画像">
   </div>
 
-  <!-- 本物のMP3音源プレイヤー -->
+  <!-- Wikimedia公式APIから取得する本物の音源プレイヤー -->
   <div class="audio-box" id="audio-box">
-    <span class="audio-label">♪ 実際の演奏音源を聴く</span>
-    <audio id="art-audio" controls preload="none"></audio>
+    <span class="audio-label" id="audio-label">♪ 実際の演奏音源を探しています...</span>
+    <audio id="art-audio" controls preload="metadata"></audio>
   </div>
 
   <div class="content">
@@ -130,19 +130,25 @@
       title: "交響曲第9番 (ベートーヴェン)", 
       en: "Symphony_No._9_(Beethoven)", 
       category: "音楽・ドイツ",
-      mp3: "https://archive.org"
+      audioQuery: "Beethoven Symphony 9 Ode to Joy"
     },
     { 
       title: "四季 (ヴィヴァルディ)", 
       en: "The_Four_Seasons_(Vivaldi)", 
       category: "音楽・イタリア",
-      mp3: "https://archive.org"
+      audioQuery: "Vivaldi Four Seasons Spring"
     },
     { 
-      title: "ゴルトベルク変奏曲", 
-      en: "Goldberg_Variations", 
-      category: "音楽・ドイツ",
-      mp3: "https://archive.org"
+      title: "ガムラン", 
+      en: "Gamelan", 
+      category: "音楽・インドネシア",
+      audioQuery: "Gamelan"
+    },
+    { 
+      title: "シタール", 
+      en: "Sitar", 
+      category: "音楽・インド",
+      audioQuery: "Sitar"
     },
     { title: "着物", en: "Kimono", category: "服飾・日本" },
     { title: "真珠の耳飾りの少女", en: "Girl_with_a_Pearl_Earring", category: "絵画・オランダ" }
@@ -157,6 +163,23 @@
     return await response.json();
   }
 
+  // Wikimedia Commonsから実在する本物の音声ファイルを自動検索する関数
+  async function fetchRealAudio(query) {
+    const apiUrl = `https://wikimedia.org{encodeURIComponent(query)}&gsrnamespace=6&gsrlimit=3&prop=imageinfo&iiprop=url&format=json&origin=*`;
+    const response = await fetch(apiUrl);
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (!data.query || !data.query.pages) return null;
+    
+    const pages = Object.values(data.query.pages);
+    for (const page of pages) {
+      if (page.imageinfo && page.imageinfo[0] && page.imageinfo[0].url) {
+        return page.imageinfo[0].url;
+      }
+    }
+    return null;
+  }
+
   async function showRandomArt() {
     let randomIndex;
     do {
@@ -168,8 +191,8 @@
     const imgEl = document.getElementById("art-image");
     const audioBox = document.getElementById("audio-box");
     const audioEl = document.getElementById("art-audio");
+    const audioLabel = document.getElementById("audio-label");
 
-    // 前の音声を停止してリセット
     audioEl.pause();
     audioEl.removeAttribute("src");
     audioEl.load();
@@ -180,10 +203,20 @@
     document.getElementById("art-desc").textContent = "Wikipediaから解説と画像を取得中...";
     imgEl.style.display = "none";
 
-    // MP3音源がある場合はプレイヤーを表示
-    if (selected.mp3) {
-      audioEl.src = selected.mp3;
+    // 音楽ジャンルの場合はWikimediaから本物の音源URLを自動検索
+    if (selected.audioQuery) {
       audioBox.style.display = "block";
+      audioLabel.textContent = "♪ 本物の演奏音源を読み込み中...";
+      fetchRealAudio(selected.audioQuery).then(audioUrl => {
+        if (audioUrl) {
+          audioEl.src = audioUrl;
+          audioLabel.textContent = "♪ 実際の演奏・楽器の録音（▶を押して再生）";
+        } else {
+          audioBox.style.display = "none";
+        }
+      }).catch(() => {
+        audioBox.style.display = "none";
+      });
     }
 
     try {
