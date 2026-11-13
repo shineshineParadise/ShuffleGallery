@@ -130,13 +130,13 @@
       title: "交響曲第9番 (ベートーヴェン)", 
       en: "Symphony_No._9_(Beethoven)", 
       category: "音楽・ドイツ",
-      audioQuery: "Beethoven Symphony 9 Ode to Joy"
+      audioQuery: "Beethoven Symphony 9"
     },
     { 
       title: "四季 (ヴィヴァルディ)", 
       en: "The_Four_Seasons_(Vivaldi)", 
       category: "音楽・イタリア",
-      audioQuery: "Vivaldi Four Seasons Spring"
+      audioQuery: "Vivaldi Four Seasons"
     },
     { 
       title: "ガムラン", 
@@ -165,7 +165,7 @@
 
   // Wikimedia Commonsから実在する本物の音声ファイルを自動検索する関数
   async function fetchRealAudio(query) {
-    const apiUrl = `https://wikimedia.org{encodeURIComponent(query)}&gsrnamespace=6&gsrlimit=3&prop=imageinfo&iiprop=url&format=json&origin=*`;
+    const apiUrl = `https://wikimedia.org{encodeURIComponent(query)}&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url&format=json&origin=*`;
     const response = await fetch(apiUrl);
     if (!response.ok) return null;
     const data = await response.json();
@@ -206,7 +206,7 @@
     // 音楽ジャンルの場合はWikimediaから本物の音源URLを自動検索
     if (selected.audioQuery) {
       audioBox.style.display = "block";
-      audioLabel.textContent = "♪ 本物の演奏音源を読み込み中...";
+      audioLabel.textContent = "♪ 本物の演奏音源を探しています...";
       fetchRealAudio(selected.audioQuery).then(audioUrl => {
         if (audioUrl) {
           audioEl.src = audioUrl;
@@ -248,3 +248,4 @@
 
 </body>
 </html>
+
