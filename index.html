@@ -54,7 +54,7 @@
     }
     .audio-box audio {
       width: 100%;
-      height: 40px;
+      height: 44px;
       outline: none;
     }
     .content {
@@ -123,9 +123,6 @@
 
 <script>
   const artList = [
-    { title: "モナ・リザ", en: "Mona_Lisa", category: "絵画・イタリア" },
-    { title: "富嶽三十六景", en: "Thirty-six_Views_of_Mount_Fuji", category: "浮世絵・日本" },
-    { title: "ミロのヴィーナス", en: "Venus_de_Milo", category: "彫刻・ギリシャ" },
     { 
       title: "交響曲第9番 (ベートーヴェン)", 
       en: "Symphony_No._9_(Beethoven)", 
@@ -150,8 +147,10 @@
       category: "音楽・インド",
       audioQuery: "Sitar"
     },
-    { title: "着物", en: "Kimono", category: "服飾・日本" },
-    { title: "真珠の耳飾りの少女", en: "Girl_with_a_Pearl_Earring", category: "絵画・オランダ" }
+    { title: "モナ・リザ", en: "Mona_Lisa", category: "絵画・イタリア" },
+    { title: "富嶽三十六景", en: "Thirty-six_Views_of_Mount_Fuji", category: "浮世絵・日本" },
+    { title: "ミロのヴィーナス", en: "Venus_de_Milo", category: "彫刻・ギリシャ" },
+    { title: "着物", en: "Kimono", category: "服飾・日本" }
   ];
 
   let lastIndex = -1;
@@ -163,7 +162,6 @@
     return await response.json();
   }
 
-  // Wikimedia Commonsから実在する本物の音声ファイルを自動検索する関数
   async function fetchRealAudio(query) {
     const apiUrl = `https://wikimedia.org{encodeURIComponent(query)}&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url&format=json&origin=*`;
     const response = await fetch(apiUrl);
@@ -173,8 +171,9 @@
     
     const pages = Object.values(data.query.pages);
     for (const page of pages) {
-      if (page.imageinfo && page.imageinfo[0] && page.imageinfo[0].url) {
-        return page.imageinfo[0].url;
+      const info = Array.isArray(page.imageinfo) ? page.imageinfo.at(0) : null;
+      if (info && info.url) {
+        return info.url;
       }
     }
     return null;
@@ -187,7 +186,7 @@
     } while (randomIndex === lastIndex && artList.length > 1);
     lastIndex = randomIndex;
 
-    const selected = artList[randomIndex];
+    const selected = artList.at(randomIndex);
     const imgEl = document.getElementById("art-image");
     const audioBox = document.getElementById("audio-box");
     const audioEl = document.getElementById("art-audio");
@@ -203,19 +202,18 @@
     document.getElementById("art-desc").textContent = "Wikipediaから解説と画像を取得中...";
     imgEl.style.display = "none";
 
-    // 音楽ジャンルの場合はWikimediaから本物の音源URLを自動検索
     if (selected.audioQuery) {
       audioBox.style.display = "block";
-      audioLabel.textContent = "♪ 本物の演奏音源を探しています...";
+      audioLabel.textContent = "♪ 本物の演奏音源を読み込み中...";
       fetchRealAudio(selected.audioQuery).then(audioUrl => {
         if (audioUrl) {
           audioEl.src = audioUrl;
           audioLabel.textContent = "♪ 実際の演奏・楽器の録音（▶を押して再生）";
         } else {
-          audioBox.style.display = "none";
+          audioLabel.textContent = "※音源データが見つかりませんでした";
         }
       }).catch(() => {
-        audioBox.style.display = "none";
+        audioLabel.textContent = "※通信エラーで音源を取得できませんでした";
       });
     }
 
@@ -248,4 +246,3 @@
 
 </body>
 </html>
-
