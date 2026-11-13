@@ -41,19 +41,21 @@
       max-height: 100%;
       object-fit: contain;
     }
-    .music-player {
-      padding: 15px 25px 0;
+    .audio-box {
+      padding: 18px 25px 5px;
       display: none;
     }
-    .play-btn {
-      background-color: #8c6d46;
-      color: #fff;
-      border: none;
-      padding: 10px 24px;
-      font-size: 14px;
+    .audio-label {
+      font-size: 12px;
+      color: #8c6d46;
       font-weight: bold;
-      border-radius: 25px;
-      cursor: pointer;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .audio-box audio {
+      width: 100%;
+      height: 40px;
+      outline: none;
     }
     .content {
       padding: 20px 25px 10px;
@@ -104,9 +106,10 @@
     <img id="art-image" referrerpolicy="no-referrer" src="" alt="芸術作品の画像">
   </div>
 
-  <!-- 内蔵音源プレイヤー -->
-  <div class="music-player" id="music-player">
-    <button class="play-btn" id="play-btn" onclick="toggleMelody()">▶ メロディを再生する</button>
+  <!-- 本物のMP3音源プレイヤー -->
+  <div class="audio-box" id="audio-box">
+    <span class="audio-label">♪ 実際の演奏音源を聴く</span>
+    <audio id="art-audio" controls preload="none"></audio>
   </div>
 
   <div class="content">
@@ -127,92 +130,25 @@
       title: "交響曲第9番 (ベートーヴェン)", 
       en: "Symphony_No._9_(Beethoven)", 
       category: "音楽・ドイツ",
-      melody: [
-        [329.63, 0.4], [329.63, 0.4], [349.23, 0.4], [392.00, 0.4],
-        [392.00, 0.4], [349.23, 0.4], [329.63, 0.4], [293.66, 0.4],
-        [261.63, 0.4], [261.63, 0.4], [293.66, 0.4], [329.63, 0.4],
-        [329.63, 0.6], [293.66, 0.2], [293.66, 0.8]
-      ]
+      mp3: "https://archive.org"
     },
     { 
-      title: "ガムラン", 
-      en: "Gamelan", 
-      category: "音楽・インドネシア",
-      melody: [
-        [261.63, 0.3], [293.66, 0.3], [329.63, 0.3], [392.00, 0.3],
-        [440.00, 0.3], [523.25, 0.4], [440.00, 0.3], [392.00, 0.3],
-        [329.63, 0.3], [293.66, 0.3], [261.63, 0.6]
-      ]
+      title: "四季 (ヴィヴァルディ)", 
+      en: "The_Four_Seasons_(Vivaldi)", 
+      category: "音楽・イタリア",
+      mp3: "https://archive.org"
     },
     { 
-      title: "さくらさくら", 
-      en: "Sakura_Sakura", 
-      category: "伝統音楽・日本",
-      melody: [
-        [440.00, 0.4], [440.00, 0.4], [493.88, 0.8],
-        [440.00, 0.4], [440.00, 0.4], [493.88, 0.8],
-        [440.00, 0.4], [493.88, 0.4], [523.25, 0.4], [493.88, 0.4],
-        [440.00, 0.4], [493.88, 0.2], [440.00, 0.2], [349.23, 0.8]
-      ]
+      title: "ゴルトベルク変奏曲", 
+      en: "Goldberg_Variations", 
+      category: "音楽・ドイツ",
+      mp3: "https://archive.org"
     },
     { title: "着物", en: "Kimono", category: "服飾・日本" },
     { title: "真珠の耳飾りの少女", en: "Girl_with_a_Pearl_Earring", category: "絵画・オランダ" }
   ];
 
   let lastIndex = -1;
-  let audioCtx = null;
-  let isPlaying = false;
-  let playTimers = [];
-  let currentMelody = null;
-
-  function stopMelody() {
-    isPlaying = false;
-    playTimers.forEach(timer => clearTimeout(timer));
-    playTimers = [];
-    document.getElementById("play-btn").textContent = "▶ メロディを再生する";
-  }
-
-  function toggleMelody() {
-    if (isPlaying) {
-      stopMelody();
-      return;
-    }
-    if (!currentMelody) return;
-
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === "suspended") {
-      audioCtx.resume();
-    }
-
-    isPlaying = true;
-    document.getElementById("play-btn").textContent = "■ 停止する";
-
-    let currentTime = 0;
-    currentMelody.forEach(([freq, duration]) => {
-      const timer = setTimeout(() => {
-        if (!isPlaying) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = "triangle";
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + duration);
-      }, currentTime * 1000);
-      playTimers.push(timer);
-      currentTime += duration;
-    });
-
-    const endTimer = setTimeout(() => {
-      stopMelody();
-    }, currentTime * 1000);
-    playTimers.push(endTimer);
-  }
 
   async function fetchWikiData(lang, title) {
     const url = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
@@ -222,8 +158,6 @@
   }
 
   async function showRandomArt() {
-    stopMelody();
-
     let randomIndex;
     do {
       randomIndex = Math.floor(Math.random() * artList.length);
@@ -232,19 +166,24 @@
 
     const selected = artList[randomIndex];
     const imgEl = document.getElementById("art-image");
-    const musicPlayer = document.getElementById("music-player");
+    const audioBox = document.getElementById("audio-box");
+    const audioEl = document.getElementById("art-audio");
+
+    // 前の音声を停止してリセット
+    audioEl.pause();
+    audioEl.removeAttribute("src");
+    audioEl.load();
+    audioBox.style.display = "none";
 
     document.getElementById("art-category").textContent = selected.category;
     document.getElementById("art-title").textContent = selected.title;
     document.getElementById("art-desc").textContent = "Wikipediaから解説と画像を取得中...";
     imgEl.style.display = "none";
 
-    if (selected.melody) {
-      currentMelody = selected.melody;
-      musicPlayer.style.display = "block";
-    } else {
-      currentMelody = null;
-      musicPlayer.style.display = "none";
+    // MP3音源がある場合はプレイヤーを表示
+    if (selected.mp3) {
+      audioEl.src = selected.mp3;
+      audioBox.style.display = "block";
     }
 
     try {
@@ -276,4 +215,3 @@
 
 </body>
 </html>
-
