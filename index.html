@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>世界の芸術ランダムギャラリー</title>
+  <style>
+    body {
+      font-family: "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+      background-color: #f4f1ea;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 15px;
+      box-sizing: border-box;
+    }
+    .card {
+      background: #fff;
+      max-width: 600px;
+      width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      overflow: hidden;
+      text-align: center;
+      padding-bottom: 25px;
+    }
+    .image-box {
+      width: 100%;
+      height: 300px;
+      background-color: #222;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      position: relative;
+    }
+    .image-box img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .content {
+      padding: 20px 25px 10px;
+    }
+    .category {
+      display: inline-block;
+      background-color: #8c6d46;
+      color: #fff;
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 8px;
+    }
+    h1 {
+      font-size: 22px;
+      margin: 5px 0 12px;
+      color: #1a1a1a;
+    }
+    p {
+      font-size: 14px;
+      line-height: 1.7;
+      text-align: left;
+      color: #444;
+      margin-bottom: 20px;
+    }
+    button {
+      background-color: #2c3e50;
+      color: #fff;
+      border: none;
+      padding: 12px 28px;
+      font-size: 15px;
+      font-weight: bold;
+      border-radius: 30px;
+      cursor: pointer;
+    }
+    .wiki-link {
+      display: block;
+      margin-top: 15px;
+      font-size: 13px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="image-box">
+    <img id="art-image" referrerpolicy="no-referrer" src="" alt="芸術作品の画像">
+  </div>
+  <div class="content">
+    <span id="art-category" class="category">読み込み中...</span>
+    <h1 id="art-title">タイトル</h1>
+    <p id="art-desc">解説文を読み込んでいます...</p>
+    <button onclick="showRandomArt()">次の芸術に出会う</button>
+    <a id="art-link" class="wiki-link" href="#" target="_blank">Wikipediaで詳しく読む</a>
+  </div>
+</div>
+
+<script>
+  // 日本語タイトルと英語タイトルを両方登録して画像取得率をアップ
+  const artList = [
+    { title: "モナ・リザ", en: "Mona_Lisa", category: "絵画・イタリア" },
+    { title: "富嶽三十六景", en: "Thirty-six_Views_of_Mount_Fuji", category: "浮世絵・日本" },
+    { title: "ミロのヴィーナス", en: "Venus_de_Milo", category: "彫刻・ギリシャ" },
+    { title: "星月夜", en: "The_Starry_Night", category: "絵画・オランダ" },
+    { title: "考える人", en: "The_Thinker", category: "彫刻・フランス" },
+    { title: "着物", en: "Kimono", category: "服飾・日本" },
+    { title: "ガムラン", en: "Gamelan", category: "音楽・インドネシア" },
+    { title: "ペルシア絨毯", en: "Persian_carpet", category: "工芸・イラン" },
+    { title: "真珠の耳飾りの少女", en: "Girl_with_a_Pearl_Earring", category: "絵画・オランダ" },
+    { title: "民衆を導く自由の女神", en: "Liberty_Leading_the_People", category: "絵画・フランス" }
+  ];
+
+  let lastIndex = -1;
+
+  async function fetchWikiData(lang, title) {
+    const url = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    return await response.json();
+  }
+
+  async function showRandomArt() {
+    let randomIndex;
+    do {
+      randomIndex = Math.floor(Math.random() * artList.length);
+    } while (randomIndex === lastIndex && artList.length > 1);
+    lastIndex = randomIndex;
+
+    const selected = artList[randomIndex];
+    const imgEl = document.getElementById("art-image");
+    
+    document.getElementById("art-category").textContent = selected.category;
+    document.getElementById("art-title").textContent = selected.title;
+    document.getElementById("art-desc").textContent = "Wikipediaから解説と画像を取得中...";
+    imgEl.style.display = "none";
+
+    try {
+      // 1. 日本語版Wikipediaからデータ取得
+      const jaData = await fetchWikiData("ja", selected.title);
+      
+      if (jaData) {
+        document.getElementById("art-desc").textContent = jaData.extract || "解説が見つかりませんでした。";
+        document.getElementById("art-link").href = jaData.content_urls?.desktop?.page || "#";
+      }
+
+      // 2. 画像URLを探す（日本語版のサムネイル → 元画像 → 英語版の画像の順で探す）
+      let imageUrl = jaData?.thumbnail?.source || jaData?.originalimage?.source;
+
+      if (!imageUrl && selected.en) {
+        const enData = await fetchWikiData("en", selected.en);
+        imageUrl = enData?.thumbnail?.source || enData?.originalimage?.source;
+      }
+
+      if (imageUrl) {
+        imgEl.src = imageUrl;
+        imgEl.style.display = "block";
+      } else {
+        imgEl.src = "https://placehold.jp";
+        imgEl.style.display = "block";
+      }
+    } catch (error) {
+      document.getElementById("art-desc").textContent = "データの取得に失敗しました。通信環境を確認してください。";
+    }
+  }
+
+  showRandomArt();
+</script>
+
+</body>
+</html>
