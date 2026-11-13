@@ -106,7 +106,7 @@
     <img id="art-image" referrerpolicy="no-referrer" src="" alt="芸術作品の画像">
   </div>
 
-  <!-- Wikimedia公式APIから取得する本物の音源プレイヤー -->
+  <!-- 音源がある場合のみ自動で表示されるプレイヤー -->
   <div class="audio-box" id="audio-box">
     <span class="audio-label" id="audio-label">♪ 実際の演奏音源を探しています...</span>
     <audio id="art-audio" controls preload="metadata"></audio>
@@ -123,34 +123,32 @@
 
 <script>
   const artList = [
-    { 
-      title: "交響曲第9番 (ベートーヴェン)", 
-      en: "Symphony_No._9_(Beethoven)", 
-      category: "音楽・ドイツ",
-      audioQuery: "Beethoven Symphony 9"
-    },
-    { 
-      title: "四季 (ヴィヴァルディ)", 
-      en: "The_Four_Seasons_(Vivaldi)", 
-      category: "音楽・イタリア",
-      audioQuery: "Vivaldi Four Seasons"
-    },
-    { 
-      title: "ガムラン", 
-      en: "Gamelan", 
-      category: "音楽・インドネシア",
-      audioQuery: "Gamelan"
-    },
-    { 
-      title: "シタール", 
-      en: "Sitar", 
-      category: "音楽・インド",
-      audioQuery: "Sitar"
-    },
-    { title: "モナ・リザ", en: "Mona_Lisa", category: "絵画・イタリア" },
+    // --- 現代アート・新進気鋭の芸術家 ---
+    { title: "チームラボ", en: "TeamLab_(art_collective)", category: "デジタルアート・日本" },
+    { title: "オラファー・エリアソン", en: "Olafur_Eliasson", category: "現代美術・デンマーク" },
+    { title: "バンクシー", en: "Banksy", category: "ストリートアート・イギリス" },
+    { title: "草間彌生", en: "Yayoi_Kusama", category: "現代美術・日本" },
+    { title: "塩田千春", en: "Chiharu_Shiota", category: "インスタレーション・日本" },
+    { title: "ジェフ・クーンズ", en: "Jeff_Koons", category: "現代彫刻・アメリカ" },
+    { title: "艾未未", en: "Ai_Weiwei", category: "現代美術・中国" },
+
+    // --- 現代で評価されている音楽・作曲家 ---
+    { title: "ブライアン・イーノ", en: "Brian_Eno", category: "アンビエント音楽・イギリス", hasAudio: true },
+    { title: "坂本龍一", en: "Ryuichi_Sakamoto", category: "現代音楽 / 電子音楽・日本", hasAudio: true },
+    { title: "フィリップ・グラス", en: "Philip_Glass", category: "ミニマル音楽・アメリカ", hasAudio: true },
+    { title: "マックス・リヒター", en: "Max_Richter", category: "ポスト・クラシカル・ドイツ", hasAudio: true },
+    { title: "ビョーク", en: "Björk", category: "前衛ポップ / 電子音楽・アイスランド", hasAudio: true },
+    { title: "ジョン・ケージ", en: "John_Cage", category: "現代音楽・アメリカ", hasAudio: true },
+
+    // --- 古典・伝統芸術・民族音楽 ---
+    { title: "交響曲第9番 (ベートーヴェン)", en: "Symphony_No._9_(Beethoven)", category: "古典音楽・ドイツ", hasAudio: true },
+    { title: "四季 (ヴィヴァルディ)", en: "The_Four_Seasons_(Vivaldi)", category: "古典音楽・イタリア", hasAudio: true },
+    { title: "ガムラン", en: "Gamelan", category: "民族音楽・インドネシア", hasAudio: true },
+    { title: "シタール", en: "Sitar", category: "民族音楽・インド", hasAudio: true },
+    { title: "モナ・リザ", en: "Mona_Lisa", category: "古典絵画・イタリア" },
     { title: "富嶽三十六景", en: "Thirty-six_Views_of_Mount_Fuji", category: "浮世絵・日本" },
-    { title: "ミロのヴィーナス", en: "Venus_de_Milo", category: "彫刻・ギリシャ" },
-    { title: "着物", en: "Kimono", category: "服飾・日本" }
+    { title: "ミロのヴィーナス", en: "Venus_de_Milo", category: "古代彫刻・ギリシャ" },
+    { title: "着物", en: "Kimono", category: "伝統服飾・日本" }
   ];
 
   let lastIndex = -1;
@@ -162,18 +160,20 @@
     return await response.json();
   }
 
-  async function fetchRealAudio(query) {
-    const apiUrl = `https://wikimedia.org{encodeURIComponent(query)}&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url&format=json&origin=*`;
-    const response = await fetch(apiUrl);
+  async function fetchWikiMediaAudio(enTitle) {
+    const url = `https://wikipedia.org{encodeURIComponent(enTitle)}`;
+    const response = await fetch(url);
     if (!response.ok) return null;
     const data = await response.json();
-    if (!data.query || !data.query.pages) return null;
-    
-    const pages = Object.values(data.query.pages);
-    for (const page of pages) {
-      const info = Array.isArray(page.imageinfo) ? page.imageinfo.at(0) : null;
-      if (info && info.url) {
-        return info.url;
+    if (!data.items || !Array.isArray(data.items)) return null;
+
+    for (const item of data.items) {
+      if (item.type === "audio" && item.srcset && item.srcset.length > 0) {
+        let src = item.srcset.at(0).src;
+        if (src.startsWith("//")) {
+          src = "https:" + src;
+        }
+        return src;
       }
     }
     return null;
@@ -202,18 +202,18 @@
     document.getElementById("art-desc").textContent = "Wikipediaから解説と画像を取得中...";
     imgEl.style.display = "none";
 
-    if (selected.audioQuery) {
-      audioBox.style.display = "block";
-      audioLabel.textContent = "♪ 本物の演奏音源を読み込み中...";
-      fetchRealAudio(selected.audioQuery).then(audioUrl => {
+    // 音楽ジャンルの場合、Wikipediaに音源データがあるか確認して自動表示
+    if (selected.hasAudio && selected.en) {
+      fetchWikiMediaAudio(selected.en).then(audioUrl => {
         if (audioUrl) {
           audioEl.src = audioUrl;
-          audioLabel.textContent = "♪ 実際の演奏・楽器の録音（▶を押して再生）";
+          audioBox.style.display = "block";
+          audioLabel.textContent = "♪ 関連音声・演奏の録音（▶を押して再生）";
         } else {
-          audioLabel.textContent = "※音源データが見つかりませんでした";
+          audioBox.style.display = "none";
         }
       }).catch(() => {
-        audioLabel.textContent = "※通信エラーで音源を取得できませんでした";
+        audioBox.style.display = "none";
       });
     }
 
