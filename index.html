@@ -54,6 +54,7 @@
       width: 100%;
       padding-top: 56.25%;
       display: none;
+      background-color: #000;
     }
     .video-box iframe {
       position: absolute;
@@ -112,14 +113,12 @@
     <img id="art-image" referrerpolicy="no-referrer" src="" alt="芸術作品の画像">
   </div>
   
-  <!-- YouTubeプレイヤー用エリア -->
   <div class="video-box" id="video-box">
     <iframe id="art-video" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
   </div>
 
-  <!-- 音声プレイヤー用エリア -->
   <div class="audio-box" id="audio-box">
-    <audio id="art-audio" controls></audio>
+    <audio id="art-audio" controls preload="metadata"></audio>
   </div>
 
   <div class="content">
@@ -137,16 +136,22 @@
     { title: "富嶽三十六景", en: "Thirty-six_Views_of_Mount_Fuji", category: "浮世絵・日本" },
     { title: "ミロのヴィーナス", en: "Venus_de_Milo", category: "彫刻・ギリシャ" },
     { 
-      title: "ガムラン", 
-      en: "Gamelan", 
-      category: "音楽・インドネシア",
-      audio: "https://wikimedia.org"
-    },
-    { 
       title: "交響曲第9番 (ベートーヴェン)", 
       en: "Symphony_No._9_(Beethoven)", 
       category: "音楽・ドイツ",
       audio: "https://wikimedia.org"
+    },
+    { 
+      title: "四季 (ヴィヴァルディ)", 
+      en: "The_Four_Seasons_(Vivaldi)", 
+      category: "音楽・イタリア",
+      audio: "https://wikimedia.org"
+    },
+    { 
+      title: "ガムラン", 
+      en: "Gamelan", 
+      category: "音楽・インドネシア",
+      youtube: "c1AiCTJ9t8g"
     },
     { title: "着物", en: "Kimono", category: "服飾・日本" },
     { title: "真珠の耳飾りの少女", en: "Girl_with_a_Pearl_Earring", category: "絵画・オランダ" }
@@ -176,9 +181,9 @@
     const videoBox = document.getElementById("video-box");
     const videoEl = document.getElementById("art-video");
 
-    // 前の再生をリセット
     audioEl.pause();
-    audioEl.src = "";
+    audioEl.removeAttribute("src");
+    audioEl.load();
     audioBox.style.display = "none";
     videoEl.src = "";
     videoBox.style.display = "none";
@@ -189,13 +194,11 @@
     document.getElementById("art-desc").textContent = "Wikipediaから解説と画像を取得中...";
     imgEl.style.display = "none";
 
-    // 音声データがある場合はプレイヤーを表示
     if (selected.audio) {
       audioEl.src = selected.audio;
       audioBox.style.display = "block";
     }
 
-    // YouTube動画IDがある場合は動画を表示
     if (selected.youtube) {
       videoEl.src = `https://youtube.com{selected.youtube}`;
       videoBox.style.display = "block";
