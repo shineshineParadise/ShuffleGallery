@@ -35,12 +35,33 @@
       justify-content: center;
       align-items: center;
       overflow: hidden;
-      position: relative;
     }
     .image-box img {
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
+    }
+    .audio-box {
+      padding: 15px 25px 0;
+      display: none;
+    }
+    .audio-box audio {
+      width: 100%;
+      outline: none;
+    }
+    .video-box {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%;
+      display: none;
+    }
+    .video-box iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
     }
     .content {
       padding: 20px 25px 10px;
@@ -87,9 +108,20 @@
 <body>
 
 <div class="card">
-  <div class="image-box">
+  <div class="image-box" id="image-box">
     <img id="art-image" referrerpolicy="no-referrer" src="" alt="芸術作品の画像">
   </div>
+  
+  <!-- YouTubeプレイヤー用エリア -->
+  <div class="video-box" id="video-box">
+    <iframe id="art-video" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+  </div>
+
+  <!-- 音声プレイヤー用エリア -->
+  <div class="audio-box" id="audio-box">
+    <audio id="art-audio" controls></audio>
+  </div>
+
   <div class="content">
     <span id="art-category" class="category">読み込み中...</span>
     <h1 id="art-title">タイトル</h1>
@@ -100,18 +132,24 @@
 </div>
 
 <script>
-  // 日本語タイトルと英語タイトルを両方登録して画像取得率をアップ
   const artList = [
     { title: "モナ・リザ", en: "Mona_Lisa", category: "絵画・イタリア" },
     { title: "富嶽三十六景", en: "Thirty-six_Views_of_Mount_Fuji", category: "浮世絵・日本" },
     { title: "ミロのヴィーナス", en: "Venus_de_Milo", category: "彫刻・ギリシャ" },
-    { title: "星月夜", en: "The_Starry_Night", category: "絵画・オランダ" },
-    { title: "考える人", en: "The_Thinker", category: "彫刻・フランス" },
+    { 
+      title: "ガムラン", 
+      en: "Gamelan", 
+      category: "音楽・インドネシア",
+      audio: "https://wikimedia.org"
+    },
+    { 
+      title: "交響曲第9番 (ベートーヴェン)", 
+      en: "Symphony_No._9_(Beethoven)", 
+      category: "音楽・ドイツ",
+      audio: "https://wikimedia.org"
+    },
     { title: "着物", en: "Kimono", category: "服飾・日本" },
-    { title: "ガムラン", en: "Gamelan", category: "音楽・インドネシア" },
-    { title: "ペルシア絨毯", en: "Persian_carpet", category: "工芸・イラン" },
-    { title: "真珠の耳飾りの少女", en: "Girl_with_a_Pearl_Earring", category: "絵画・オランダ" },
-    { title: "民衆を導く自由の女神", en: "Liberty_Leading_the_People", category: "絵画・フランス" }
+    { title: "真珠の耳飾りの少女", en: "Girl_with_a_Pearl_Earring", category: "絵画・オランダ" }
   ];
 
   let lastIndex = -1;
@@ -132,38 +170,61 @@
 
     const selected = artList[randomIndex];
     const imgEl = document.getElementById("art-image");
-    
+    const imageBox = document.getElementById("image-box");
+    const audioBox = document.getElementById("audio-box");
+    const audioEl = document.getElementById("art-audio");
+    const videoBox = document.getElementById("video-box");
+    const videoEl = document.getElementById("art-video");
+
+    // 前の再生をリセット
+    audioEl.pause();
+    audioEl.src = "";
+    audioBox.style.display = "none";
+    videoEl.src = "";
+    videoBox.style.display = "none";
+    imageBox.style.display = "flex";
+
     document.getElementById("art-category").textContent = selected.category;
     document.getElementById("art-title").textContent = selected.title;
     document.getElementById("art-desc").textContent = "Wikipediaから解説と画像を取得中...";
     imgEl.style.display = "none";
 
+    // 音声データがある場合はプレイヤーを表示
+    if (selected.audio) {
+      audioEl.src = selected.audio;
+      audioBox.style.display = "block";
+    }
+
+    // YouTube動画IDがある場合は動画を表示
+    if (selected.youtube) {
+      videoEl.src = `https://youtube.com{selected.youtube}`;
+      videoBox.style.display = "block";
+      imageBox.style.display = "none";
+    }
+
     try {
-      // 1. 日本語版Wikipediaからデータ取得
       const jaData = await fetchWikiData("ja", selected.title);
-      
       if (jaData) {
         document.getElementById("art-desc").textContent = jaData.extract || "解説が見つかりませんでした。";
         document.getElementById("art-link").href = jaData.content_urls?.desktop?.page || "#";
       }
 
-      // 2. 画像URLを探す（日本語版のサムネイル → 元画像 → 英語版の画像の順で探す）
-      let imageUrl = jaData?.thumbnail?.source || jaData?.originalimage?.source;
-
-      if (!imageUrl && selected.en) {
-        const enData = await fetchWikiData("en", selected.en);
-        imageUrl = enData?.thumbnail?.source || enData?.originalimage?.source;
-      }
-
-      if (imageUrl) {
-        imgEl.src = imageUrl;
-        imgEl.style.display = "block";
-      } else {
-        imgEl.src = "https://placehold.jp";
-        imgEl.style.display = "block";
+      if (!selected.youtube) {
+        let imageUrl = jaData?.thumbnail?.source || jaData?.originalimage?.source;
+        if (!imageUrl && selected.en) {
+          const enData = await fetchWikiData("en", selected.en);
+          imageUrl = enData?.thumbnail?.source || enData?.originalimage?.source;
+        }
+        if (imageUrl) {
+          imgEl.src = imageUrl;
+          imgEl.style.display = "block";
+        } else {
+          imgEl.src = "https://placehold.jp";
+          imgEl.style.display = "block";
+        }
       }
     } catch (error) {
-      document.getElementById("art-desc").textContent = "データの取得に失敗しました。通信環境を確認してください。";
+      document.getElementById("art-desc").textContent = "データの取得に失敗しました。";
     }
   }
 
